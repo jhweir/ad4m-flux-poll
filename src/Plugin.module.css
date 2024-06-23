@@ -5,6 +5,23 @@
   max-width: 800px;
 }
 
+.answer {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--j-space-400);
+}
+
+.index {
+  width: var(--j-size-md);
+  height: var(--j-size-md);
+  border-radius: var(--j-border-radius);
+  margin-right: var(--j-space-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 
 .titleInput {
   width: 100%;
   font-size: var(--j-font-size-700);
@@ -23,6 +40,16 @@
   outline: 0;
 }
 
+.titleDescription {
+  width: 100%;
+  font-size: var(--j-font-size-400);
+  height: var(--j-size-xl);
+  padding: 0;
+  color: var(--j-color-black);
+  background: transparent;
+  border: 0;
+}
+
 .doneTodo {
   text-decoration: line-through;
-}
+} */

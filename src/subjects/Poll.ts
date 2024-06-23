@@ -1,33 +1,33 @@
 import { SDNAClass, SubjectFlag, SubjectProperty } from "@coasys/ad4m";
 
 @SDNAClass({
-  name: "Todo",
+  name: "Poll",
 })
-export default class Todo {
+export default class Poll {
   @SubjectFlag({
-    through: "flux://entry_type",
-    value: "flux://has_todo",
+    through: "we://entry_type",
+    value: "we://has_poll",
   })
   type: string;
 
   @SubjectProperty({
-    through: "rdf://title",
+    through: "we://title",
     writable: true,
     resolveLanguage: "literal",
   })
   title: string;
 
   @SubjectProperty({
-    through: "rdf://description",
+    through: "we://description",
     writable: true,
     resolveLanguage: "literal",
   })
-  desc: string;
+  description: string;
 
   @SubjectProperty({
-    through: "rdf://status",
+    through: "we://answers_locked",
     writable: true,
     resolveLanguage: "literal",
   })
-  done: boolean;
+  answersLocked: boolean;
 }

@@ -1,7 +1,6 @@
+import { AgentClient, PerspectiveProxy } from "@coasys/ad4m";
 import styles from "./Plugin.module.css";
-import { PerspectiveProxy } from "@coasys/ad4m";
-import TodoView from "./components/TodoView";
-import { AgentClient } from "@coasys/ad4m";
+import PollView from "./components/PollView";
 
 type Props = {
   agent: AgentClient;
@@ -14,7 +13,7 @@ export default function Plugin({ agent, perspective, source }: Props) {
 
   return (
     <div className={styles.appContainer}>
-      <TodoView perspective={perspective} source={source}></TodoView>
+      <PollView perspective={perspective} source={source}></PollView>
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { useState } from "preact/hooks";
 import { PerspectiveProxy } from "@coasys/ad4m";
 import { useSubjects } from "@coasys/ad4m-react-hooks";
+import { useState } from "preact/hooks";
 
 import Todo from "../subjects/Todo";
+// import TodoNew from "../subjects/TodoNew";
 
 import styles from "../Plugin.module.css";
 
@@ -20,10 +21,16 @@ export default function TodoView({ perspective, source }: Props) {
     subject: Todo,
   });
 
+  // const { entries: todos, repo } = useSubjects({
+  //   perspective,
+  //   source,
+  //   subject: TodoNew,
+  // });
+
   function createTodo(event: React.KeyboardEvent<Element>) {
     if (event.key !== "Enter") return;
     repo
-      .create({ title: title })
+      .create({ title: title, desc: "yoooo", done: false, type: "todo" })
       .then(() => {
         setTitle("");
       })
@@ -46,7 +53,7 @@ export default function TodoView({ perspective, source }: Props) {
           size="300"
           weight="800"
           color="primary-500"
-          variant="success"
+          // variant="success"
         >
           Make a new todo
         </j-text>
@@ -64,15 +71,16 @@ export default function TodoView({ perspective, source }: Props) {
       <j-box pt="500">
         <j-flex gap="300" direction="column">
           {todos.map((todo) => (
-            <j-box bg="ui-50" p="400" radius="md">
+            <j-box p="400" radius="md">
               <j-flex j="between">
+                {/* <div className={""}> */}
                 <div className={todo.done ? styles.doneTodo : ""}>
                   <j-checkbox
-                    onChange={(e) =>
-                      toggleTodo({ id: todo.id, done: e.target.checked })
+                    onChange={
+                      (e) => toggleTodo({ id: todo.id, done: todo.done }) // e.target.checked })
                     }
                     checked={todo.done}
-                    style="--j-border-radius: 50%;"
+                    // style="--j-border-radius: 50%;"
                     size="sm"
                   >
                     <j-icon slot="checkmark" size="xs" name="check"></j-icon>
