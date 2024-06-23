@@ -21,6 +21,11 @@
   justify-content: center;
 }
 
+.poll {
+  border: 1px solid var(--j-color-ui-200);
+  border-radius: var(--j-border-radius);
+}
+
 /* 
 .titleInput {
   width: 100%;

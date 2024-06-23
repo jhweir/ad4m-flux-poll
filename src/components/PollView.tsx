@@ -1,20 +1,47 @@
-import { PerspectiveProxy } from "@coasys/ad4m";
+import { AgentClient, PerspectiveProxy } from "@coasys/ad4m";
 import { useSubjects } from "@coasys/ad4m-react-hooks";
 import * as d3 from "d3";
 import { useEffect, useRef, useState } from "preact/hooks";
-import styles from "../Plugin.module.css";
+import Answer from "../subjects/Answer";
 import Poll from "../subjects/Poll";
+import Vote from "../subjects/Vote";
+import AnswerCard from "./AnswerCard";
+import PollCard from "./PollCard";
 
 type Props = {
   perspective: PerspectiveProxy;
   source: string;
+  agent: AgentClient;
 };
 
-export default function PollView({ perspective, source }: Props) {
+// todo:
+// + figure out how to retrieve creator info
+// + attach votes to answers
+//     + multiple repos?
+//     + correct way to store and retrieve (retrieve all at once or in steps?)
+// + display pie chart
+// + create time graph
+// + set up multiple & weighted choice
+
+export default function PollView({ perspective, source, agent }: Props) {
   const { entries: polls, repo } = useSubjects({
     perspective,
     source,
     subject: Poll,
+  });
+
+  // answer repo used to create answers
+  const { repo: answerRepo } = useSubjects({
+    perspective,
+    source,
+    subject: Answer,
+  });
+
+  // vote repo used to create and remove votes
+  const { repo: voteRepo } = useSubjects({
+    perspective,
+    source,
+    subject: Vote,
   });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -22,13 +49,10 @@ export default function PollView({ perspective, source }: Props) {
   const [description, setDescription] = useState("");
   const [answersLocked, setAnswersLocked] = useState(true);
   const [newAnswer, setNewAnswer] = useState("");
-  const [answers, setAnswers] = useState<any[]>([
-    "safdasdf",
-    "asdfwes",
-    "ldieksd",
-  ]);
+  const [answers, setAnswers] = useState<any[]>([]);
   const [titleError, setTitleError] = useState("");
   const [answersError, setAnswersError] = useState("");
+  const [newPollLoading, setNewPollLoading] = useState(false);
   const colorScale = useRef(
     d3
       .scaleSequential()
@@ -39,9 +63,8 @@ export default function PollView({ perspective, source }: Props) {
   function addAnswer() {
     if (!newAnswer) setAnswersError("Required");
     else {
-      // if valid
       setAnswersError("");
-      const newAnswers = [...answers, newAnswer];
+      const newAnswers = [...answers, { text: newAnswer }];
       colorScale.current = d3
         .scaleSequential()
         .domain([0, newAnswers.length])
@@ -64,43 +87,45 @@ export default function PollView({ perspective, source }: Props) {
   async function createPoll() {
     // validate
     setTitleError(title ? "" : "Required");
-    const answersValid = !answersLocked || answers.length > 2;
+    const answersValid = !answersLocked || answers.length > 1;
     setAnswersError(
       answersValid ? "" : "At least 2 answers required for locked polls"
     );
-    // if valid
     if (title && answersValid) {
-      console.log("vl.aid poll!");
-      // // create poll
-      // const poll = await repo.create({
-      //   type: "poll",
-      //   title,
-      //   description,
-      //   answersLocked,
-      // });
-      //   .then(() => {
-      //     setTitle("");
-      //     setDescription("");
-      //   })
-      //   .catch(console.log);
-
+      setNewPollLoading(true);
+      // create poll
+      // @ts-ignore
+      const poll = await repo.create({
+        title,
+        description,
+        answersLocked,
+      });
       // create answers
-
-      // links answers to poll
-      // const addLinks = await perspective.addLinks([
-      //   {
-      //     source: replyMessage.id,
-      //     predicate: REPLY_TO,
-      //     target: message.id,
-      //   },
-      //   {
-      //     source: replyMessage.id,
-      //     predicate: EntryType.Message,
-      //     target: message.id,
-      //   },
-      // ]);
-
-      // reset modal state
+      Promise.all(
+        answers.map((answer) =>
+          answerRepo
+            // @ts-ignore
+            .create({ text: answer.text })
+            .then((expression) =>
+              perspective.add({
+                // @ts-ignore
+                source: poll.id,
+                predicate: "flux://has_poll_answer",
+                // @ts-ignore
+                target: expression.id,
+              })
+            )
+        )
+      )
+        .then(() => {
+          setNewPollLoading(false);
+          setTitle("");
+          setDescription("");
+          setAnswersLocked(true);
+          setAnswers([]);
+          setModalOpen(false);
+        })
+        .catch((error) => console.log("poll creation error: ", error));
     }
   }
 
@@ -112,13 +137,54 @@ export default function PollView({ perspective, source }: Props) {
     repo.remove(id).catch(console.log);
   }
 
+  function vote(answerId: string, voteId: string) {
+    return new Promise((resolve: any) => {
+      console.log("vote!: ", answerId, voteId);
+      if (voteId) {
+        // remove vote
+        repo
+          .remove(voteId)
+          .then(() => resolve("vote removed"))
+          .catch((error) => resolve(error));
+      } else {
+        // add vote
+        // const expression = await
+        voteRepo
+          // @ts-ignore
+          .create({ value: null })
+          .then((expression) =>
+            perspective
+              .add({
+                source: answerId,
+                predicate: "flux://has_answer_vote",
+                // @ts-ignore
+                target: expression.id,
+              })
+              .then(() => resolve("vote added"))
+              .catch((error) => resolve(error))
+          );
+      }
+    });
+  }
+
+  // update modalOpen state when modal toggled shut
   useEffect(() => {
-    // update modalOpen state when modal toggled shut
     const modal = document.querySelector("j-modal");
     modal.addEventListener("toggle", (e) => {
       if (!(e.target as any).open) setModalOpen(false);
     });
+
+    // test
+    console.log(perspective, agent);
   }, []);
+
+  useEffect(() => {
+    console.log("polls: ", polls);
+  }, [polls]);
+
+  // useEffect(() => {
+  //   console.log("answerRepo: ", answerRepo);
+  // }, [answerRepo]);
 
   return (
     <div>
@@ -127,6 +193,7 @@ export default function PollView({ perspective, source }: Props) {
           Polls
         </j-text>
       </j-box>
+
       <j-button variant="primary" onClick={() => setModalOpen(true)}>
         New Poll
       </j-button>
@@ -191,30 +258,22 @@ export default function PollView({ perspective, source }: Props) {
 
           <j-box pb="600">
             {answers.map((answer, index) => (
-              <div className={styles.answer}>
-                <div
-                  className={styles.index}
-                  style={{ backgroundColor: colorScale.current(index) }}
-                >
-                  {index + 1}
-                </div>
-                <j-text size="500" nomargin>
-                  {answer}
-                </j-text>
-                <j-button square style={{ marginLeft: "var(--j-space-400)" }}>
-                  <j-icon
-                    name="trash"
-                    onClick={() => removeAnswer(index)}
-                  ></j-icon>
-                </j-button>
-              </div>
-              // <j-box p="500" radius="md">
-              //   {answer}
-              // </j-box>
+              <AnswerCard
+                perspective={perspective}
+                answer={answer}
+                index={index}
+                color={colorScale.current(index)}
+                removeAnswer={removeAnswer}
+              />
             ))}
           </j-box>
 
-          <j-button variant="primary" onClick={createPoll}>
+          <j-button
+            variant="primary"
+            onClick={createPoll}
+            loading={newPollLoading}
+            disabled={newPollLoading}
+          >
             Create Poll
           </j-button>
         </j-box>
@@ -222,36 +281,14 @@ export default function PollView({ perspective, source }: Props) {
 
       <j-box pt="500">
         <j-flex gap="300" direction="column">
-          {polls.map((poll) => (
-            <j-box p="400" radius="md">
-              <j-flex j="between">
-                <div>
-                  <j-text size="500" nomargin>
-                    {poll.title}
-                  </j-text>
-                  <j-text size="500" nomargin>
-                    {poll.description}
-                  </j-text>
-                  {/* <j-checkbox
-                    onChange={
-                      (e) => toggleTodo({ id: poll.id, done: poll.done }) // e.target.checked })
-                    }
-                    checked={poll.done}
-                    // style="--j-border-radius: 50%;"
-                    size="sm"
-                  >
-                    <j-icon slot="checkmark" size="xs" name="check"></j-icon>
-                    <j-text size="500" nomargin>
-                      {poll.title}
-                    </j-text>
-                    <j-text size="500" nomargin>
-                      {poll.desc}
-                    </j-text>
-                  </j-checkbox> */}
-                </div>
-                <j-button onClick={() => deletePoll(poll.id)}>Delete</j-button>
-              </j-flex>
-            </j-box>
+          {polls.map((poll, index) => (
+            <PollCard
+              perspective={perspective}
+              poll={poll}
+              index={index}
+              deletePoll={deletePoll}
+              vote={vote}
+            />
           ))}
         </j-flex>
       </j-box>
